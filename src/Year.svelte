@@ -34,6 +34,7 @@
         monthChange = true
         clean = true
       }
+      let month = week[0].format('month')
       return week.map(d => {
         let inMonth = true
         if (monthChange && d.month() !== week[0].month()) {
@@ -50,6 +51,7 @@
           iso: iso,
           noday: noday,
           inMonth: inMonth,
+          month: month,
           monthChange: monthChange,
           today: d.isSame(today, 'day'),
           color: meta.color || 'none',
@@ -131,14 +133,35 @@
     position: relative;
     top: -35px;
   }
+  .line {
+    font-size: 8px;
+    color: steelblue;
+    margin-bottom: 5px;
+    box-shadow: 2px 2px 1px 0px steelblue;
+    height: 1px;
+  }
+  .noline {
+    font-size: 8px;
+    margin-bottom: 5px;
+    height: 1px;
+  }
   /* medium */
   @media only screen and (max-width: 800px) {
     /* horizontal */
     .twoMonthHor {
-      padding-left: 5px;
+      padding-left: 8px;
     }
     .inMonthHor {
-      left: -5px;
+      left: -8px;
+    }
+  }
+  @media only screen and (max-width: 650px) {
+    /* horizontal */
+    .twoMonthHor {
+      padding-left: 2px;
+    }
+    .inMonthHor {
+      left: -2px;
     }
   }
   @media only screen and (max-width: 400px) {
@@ -154,19 +177,12 @@
     .inMonthVer {
       top: -20px;
     }
-    /* horizontal */
-    .twoMonthHor {
-      padding-left: 0px;
-    }
-    .inMonthHor {
-      left: -0px;
-    }
   }
 </style>
 
 <div class="label">{label}</div>
 <div class="year" class:vertical>
-  {#each weeks as week}
+  {#each weeks as week, i}
     <div
       class="week"
       class:vertWeek={vertical}
@@ -182,6 +198,11 @@
           style="background-color:{d.color};"
           title={d.iso} />
       {/each}
+      {#if i !== weeks.length - 1}
+        <div class="line" />
+      {:else}
+        <div class="noline" />
+      {/if}
     </div>
   {/each}
 </div>
