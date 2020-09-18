@@ -2,7 +2,7 @@
   <div><b>somehow-year</b></div>
   <img src="https://user-images.githubusercontent.com/399657/68222691-6597f180-ffb9-11e9-8a32-a7f38aa8bded.png"/>
   <div>— part of <a href="https://github.com/spencermountain/somehow">somehow</a> —</div>
-  <div>WIP svelte infographics</div>
+  <div>svelte infographics</div>
   <div align="center">
     <sub>
       by
@@ -45,6 +45,7 @@ week-centered year from start to end dates, inclusive
 ### Vertical
 
 pass-in vertical={true}
+
 ![image](https://user-images.githubusercontent.com/399657/93631491-afaf7900-f9b9-11ea-96f7-b0a2ae394b52.png)
 
 ### API
