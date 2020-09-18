@@ -4,12 +4,6 @@ var app = (function () {
     'use strict';
 
     function noop() { }
-    function assign(tar, src) {
-        // @ts-ignore
-        for (const k in src)
-            tar[k] = src[k];
-        return tar;
-    }
     function add_location(element, file, line, column, char) {
         element.__svelte_meta = {
             loc: { file, line, column, char }
@@ -32,42 +26,6 @@ var app = (function () {
     }
     function is_empty(obj) {
         return Object.keys(obj).length === 0;
-    }
-    function create_slot(definition, ctx, $$scope, fn) {
-        if (definition) {
-            const slot_ctx = get_slot_context(definition, ctx, $$scope, fn);
-            return definition[0](slot_ctx);
-        }
-    }
-    function get_slot_context(definition, ctx, $$scope, fn) {
-        return definition[1] && fn
-            ? assign($$scope.ctx.slice(), definition[1](fn(ctx)))
-            : $$scope.ctx;
-    }
-    function get_slot_changes(definition, $$scope, dirty, fn) {
-        if (definition[2] && fn) {
-            const lets = definition[2](fn(dirty));
-            if ($$scope.dirty === undefined) {
-                return lets;
-            }
-            if (typeof lets === 'object') {
-                const merged = [];
-                const len = Math.max($$scope.dirty.length, lets.length);
-                for (let i = 0; i < len; i += 1) {
-                    merged[i] = $$scope.dirty[i] | lets[i];
-                }
-                return merged;
-            }
-            return $$scope.dirty | lets;
-        }
-        return $$scope.dirty;
-    }
-    function update_slot(slot, slot_definition, ctx, $$scope, dirty, get_slot_changes_fn, get_slot_context_fn) {
-        const slot_changes = get_slot_changes(slot_definition, $$scope, dirty, get_slot_changes_fn);
-        if (slot_changes) {
-            const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
-            slot.p(slot_context, slot_changes);
-        }
     }
 
     function append(target, node) {
@@ -102,6 +60,9 @@ var app = (function () {
     }
     function children(element) {
         return Array.from(element.childNodes);
+    }
+    function toggle_class(element, name, toggle) {
+        element.classList[toggle ? 'add' : 'remove'](name);
     }
     function custom_event(type, detail) {
         const e = document.createEvent('CustomEvent');
@@ -179,19 +140,6 @@ var app = (function () {
     }
     const outroing = new Set();
     let outros;
-    function group_outros() {
-        outros = {
-            r: 0,
-            c: [],
-            p: outros // parent group
-        };
-    }
-    function check_outros() {
-        if (!outros.r) {
-            run_all(outros.c);
-        }
-        outros = outros.p;
-    }
     function transition_in(block, local) {
         if (block && block.i) {
             outroing.delete(block);
@@ -4678,8 +4626,8 @@ var app = (function () {
 
     function add_css() {
     	var style = element("style");
-    	style.id = "svelte-8pigki-style";
-    	style.textContent = ".row.svelte-8pigki{display:flex;flex-direction:row;justify-content:space-around;align-items:center;text-align:center;flex-wrap:nowrap;align-self:stretch}.col.svelte-8pigki{display:flex;flex-direction:column;justify-content:space-around;align-items:center;text-align:center;flex-wrap:nowrap;align-self:stretch}.day.svelte-8pigki{width:15px;height:15px;border:1px solid grey}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiWWVhci5zdmVsdGUiLCJzb3VyY2VzIjpbIlllYXIuc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCBzcGFjZXRpbWUgZnJvbSAnc3BhY2V0aW1lJ1xuICBleHBvcnQgbGV0IGRhdGUgPSAnJ1xuICBkYXRlID0gc3BhY2V0aW1lKGRhdGUpXG4gIGxldCBzdGFydCA9IGRhdGUuc3RhcnRPZigneWVhcicpLm1pbnVzKDEsICdzZWNvbmQnKVxuICBsZXQgd2Vla3MgPSBzdGFydC5ldmVyeSgnd2VlaycsIGRhdGUuZW5kT2YoJ3llYXInKSlcbiAgd2Vla3MgPSB3ZWVrcy5tYXAodyA9PiB7XG4gICAgcmV0dXJuIHcuZXZlcnkoJ2RheScsIGRhdGUuZW5kT2YoJ3dlZWsnKSlcbiAgfSlcbjwvc2NyaXB0PlxuXG48c3R5bGU+XG4gIC5yb3cge1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgZmxleC1kaXJlY3Rpb246IHJvdztcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IHNwYWNlLWFyb3VuZDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICBmbGV4LXdyYXA6IG5vd3JhcDtcbiAgICBhbGlnbi1zZWxmOiBzdHJldGNoO1xuICB9XG4gIC5jb2wge1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IHNwYWNlLWFyb3VuZDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICBmbGV4LXdyYXA6IG5vd3JhcDtcbiAgICBhbGlnbi1zZWxmOiBzdHJldGNoO1xuICB9XG4gIC5kYXkge1xuICAgIHdpZHRoOiAxNXB4O1xuICAgIGhlaWdodDogMTVweDtcbiAgICBib3JkZXI6IDFweCBzb2xpZCBncmV5O1xuICB9XG48L3N0eWxlPlxuXG48ZGl2IGNsYXNzPVwicm93XCI+XG4gIHsjZWFjaCB3ZWVrcyBhcyB3ZWVrfVxuICAgIDxkaXYgY2xhc3M9XCJjb2xcIj5cbiAgICAgIHsjZWFjaCB3ZWVrIGFzIGR9XG4gICAgICAgIDxkaXYgY2xhc3M9XCJkYXlcIj5cbiAgICAgICAgICA8c2xvdCAvPlxuICAgICAgICA8L2Rpdj5cbiAgICAgIHsvZWFjaH1cbiAgICA8L2Rpdj5cbiAgey9lYWNofVxuPC9kaXY+XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBWUUsSUFBSSxjQUFDLENBQUMsQUFDSixPQUFPLENBQUUsSUFBSSxDQUNiLGNBQWMsQ0FBRSxHQUFHLENBQ25CLGVBQWUsQ0FBRSxZQUFZLENBQzdCLFdBQVcsQ0FBRSxNQUFNLENBQ25CLFVBQVUsQ0FBRSxNQUFNLENBQ2xCLFNBQVMsQ0FBRSxNQUFNLENBQ2pCLFVBQVUsQ0FBRSxPQUFPLEFBQ3JCLENBQUMsQUFDRCxJQUFJLGNBQUMsQ0FBQyxBQUNKLE9BQU8sQ0FBRSxJQUFJLENBQ2IsY0FBYyxDQUFFLE1BQU0sQ0FDdEIsZUFBZSxDQUFFLFlBQVksQ0FDN0IsV0FBVyxDQUFFLE1BQU0sQ0FDbkIsVUFBVSxDQUFFLE1BQU0sQ0FDbEIsU0FBUyxDQUFFLE1BQU0sQ0FDakIsVUFBVSxDQUFFLE9BQU8sQUFDckIsQ0FBQyxBQUNELElBQUksY0FBQyxDQUFDLEFBQ0osS0FBSyxDQUFFLElBQUksQ0FDWCxNQUFNLENBQUUsSUFBSSxDQUNaLE1BQU0sQ0FBRSxHQUFHLENBQUMsS0FBSyxDQUFDLElBQUksQUFDeEIsQ0FBQyJ9 */";
+    	style.id = "svelte-36q35w-style";
+    	style.textContent = ".year.svelte-36q35w{display:flex;flex-direction:row;justify-content:space-around;align-items:stretch;text-align:center;flex-wrap:nowrap;align-self:stretch;height:100%;min-height:100px}.day.svelte-36q35w{flex:1;box-shadow:1px 1px 2px 0px rgba(0, 0, 0, 0.2);margin:1px}.noday.svelte-36q35w{flex:1;box-shadow:none}.weekend.svelte-36q35w{background-color:#f7f7f7;opacity:0.5}.week.svelte-36q35w{flex:1;display:flex;flex-direction:column-reverse}.label.svelte-36q35w{font-size:0.9rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiWWVhci5zdmVsdGUiLCJzb3VyY2VzIjpbIlllYXIuc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCBzcGFjZXRpbWUgZnJvbSAnc3BhY2V0aW1lJ1xuICBleHBvcnQgbGV0IGRhdGUgPSAnJ1xuICBkYXRlID0gc3BhY2V0aW1lKGRhdGUpXG4gIGxldCB5ZWFyID0gZGF0ZS55ZWFyKClcbiAgbGV0IHN0YXJ0ID0gZGF0ZVxuICAgIC5zdGFydE9mKCd5ZWFyJylcbiAgICAuc3RhcnRPZignd2VlaycpXG4gICAgLm1pbnVzKDEsICdzZWNvbmQnKVxuICBsZXQgd2Vla3MgPSBzdGFydC5ldmVyeSgnd2VlaycsIGRhdGUuZW5kT2YoJ3llYXInKSlcbiAgd2Vla3MgPSB3ZWVrcy5tYXAobW9uID0+IHtcbiAgICBsZXQgc3VuID0gbW9uLmVuZE9mKCd3ZWVrJykuYWRkKDEsICdzZWNvbmQnKVxuICAgIHJldHVybiBtb24uZXZlcnkoJ2RheScsIHN1bilcbiAgfSlcblxuICBsZXQgdG9kYXkgPSBzcGFjZXRpbWUubm93KClcbiAgd2Vla3MgPSB3ZWVrcy5tYXAod2VlayA9PiB7XG4gICAgcmV0dXJuIHdlZWsubWFwKGQgPT4ge1xuICAgICAgbGV0IG5vZGF5ID0gZC55ZWFyKCkgIT09IHllYXJcbiAgICAgIGxldCBkYXkgPSBkLmRheSgpXG4gICAgICByZXR1cm4ge1xuICAgICAgICBpc286IGQuZm9ybWF0KCdpc28tc2hvcnQnKSxcbiAgICAgICAgbm9kYXk6IG5vZGF5LFxuICAgICAgICB0b2RheTogZC5pc1NhbWUodG9kYXksICdkYXknKSxcbiAgICAgICAgd2Vla2VuZDogIW5vZGF5ICYmIChkYXkgPT09IDAgfHwgZGF5ID09PSAxKVxuICAgICAgfVxuICAgIH0pXG4gIH0pXG48L3NjcmlwdD5cblxuPHN0eWxlPlxuICAueWVhciB7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xuICAgIGp1c3RpZnktY29udGVudDogc3BhY2UtYXJvdW5kO1xuICAgIGFsaWduLWl0ZW1zOiBzdHJldGNoO1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICBmbGV4LXdyYXA6IG5vd3JhcDtcbiAgICBhbGlnbi1zZWxmOiBzdHJldGNoO1xuICAgIGhlaWdodDogMTAwJTtcbiAgICBtaW4taGVpZ2h0OiAxMDBweDtcbiAgfVxuICAuZGF5IHtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IDFweCAxcHggMnB4IDBweCByZ2JhKDAsIDAsIDAsIDAuMik7XG4gICAgbWFyZ2luOiAxcHg7XG4gIH1cbiAgLm5vZGF5IHtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IG5vbmU7XG4gIH1cbiAgLndlZWtlbmQge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmN2Y3Zjc7XG4gICAgb3BhY2l0eTogMC41O1xuICB9XG4gIC53ZWVrIHtcbiAgICBmbGV4OiAxO1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbi1yZXZlcnNlO1xuICB9XG4gIC5sYWJlbCB7XG4gICAgZm9udC1zaXplOiAwLjlyZW07XG4gIH1cbjwvc3R5bGU+XG5cbjxkaXYgY2xhc3M9XCJsYWJlbFwiPnt5ZWFyfTwvZGl2PlxuPGRpdiBjbGFzcz1cInllYXJcIj5cbiAgeyNlYWNoIHdlZWtzIGFzIHdlZWt9XG4gICAgPGRpdiBjbGFzcz1cIndlZWtcIj5cbiAgICAgIHsjZWFjaCB3ZWVrIGFzIGR9XG4gICAgICAgIDxkaXZcbiAgICAgICAgICBjbGFzcz1cImRheVwiXG4gICAgICAgICAgY2xhc3M6d2Vla2VuZD17ZC53ZWVrZW5kfVxuICAgICAgICAgIGNsYXNzOm5vZGF5PXtkLm5vZGF5fVxuICAgICAgICAgIHRpdGxlPXtkLmlzb30gLz5cbiAgICAgIHsvZWFjaH1cbiAgICA8L2Rpdj5cbiAgey9lYWNofVxuPC9kaXY+XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBK0JFLEtBQUssY0FBQyxDQUFDLEFBQ0wsT0FBTyxDQUFFLElBQUksQ0FDYixjQUFjLENBQUUsR0FBRyxDQUNuQixlQUFlLENBQUUsWUFBWSxDQUM3QixXQUFXLENBQUUsT0FBTyxDQUNwQixVQUFVLENBQUUsTUFBTSxDQUNsQixTQUFTLENBQUUsTUFBTSxDQUNqQixVQUFVLENBQUUsT0FBTyxDQUNuQixNQUFNLENBQUUsSUFBSSxDQUNaLFVBQVUsQ0FBRSxLQUFLLEFBQ25CLENBQUMsQUFDRCxJQUFJLGNBQUMsQ0FBQyxBQUNKLElBQUksQ0FBRSxDQUFDLENBQ1AsVUFBVSxDQUFFLEdBQUcsQ0FBQyxHQUFHLENBQUMsR0FBRyxDQUFDLEdBQUcsQ0FBQyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLEdBQUcsQ0FBQyxDQUM5QyxNQUFNLENBQUUsR0FBRyxBQUNiLENBQUMsQUFDRCxNQUFNLGNBQUMsQ0FBQyxBQUNOLElBQUksQ0FBRSxDQUFDLENBQ1AsVUFBVSxDQUFFLElBQUksQUFDbEIsQ0FBQyxBQUNELFFBQVEsY0FBQyxDQUFDLEFBQ1IsZ0JBQWdCLENBQUUsT0FBTyxDQUN6QixPQUFPLENBQUUsR0FBRyxBQUNkLENBQUMsQUFDRCxLQUFLLGNBQUMsQ0FBQyxBQUNMLElBQUksQ0FBRSxDQUFDLENBQ1AsT0FBTyxDQUFFLElBQUksQ0FDYixjQUFjLENBQUUsY0FBYyxBQUNoQyxDQUFDLEFBQ0QsTUFBTSxjQUFDLENBQUMsQUFDTixTQUFTLENBQUUsTUFBTSxBQUNuQixDQUFDIn0= */";
     	append_dev(document.head, style);
     }
 
@@ -4695,48 +4643,38 @@ var app = (function () {
     	return child_ctx;
     }
 
-    // (41:6) {#each week as d}
+    // (70:6) {#each week as d}
     function create_each_block_1(ctx) {
     	let div;
-    	let current;
-    	const default_slot_template = /*#slots*/ ctx[3].default;
-    	const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[2], null);
+    	let div_title_value;
 
     	const block = {
     		c: function create() {
     			div = element("div");
-    			if (default_slot) default_slot.c();
-    			attr_dev(div, "class", "day svelte-8pigki");
-    			add_location(div, file, 41, 8, 861);
+    			attr_dev(div, "class", "day svelte-36q35w");
+    			attr_dev(div, "title", div_title_value = /*d*/ ctx[8].iso);
+    			toggle_class(div, "weekend", /*d*/ ctx[8].weekend);
+    			toggle_class(div, "noday", /*d*/ ctx[8].noday);
+    			add_location(div, file, 70, 8, 1427);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-
-    			if (default_slot) {
-    				default_slot.m(div, null);
-    			}
-
-    			current = true;
     		},
     		p: function update(ctx, dirty) {
-    			if (default_slot) {
-    				if (default_slot.p && dirty & /*$$scope*/ 4) {
-    					update_slot(default_slot, default_slot_template, ctx, /*$$scope*/ ctx[2], dirty, null, null);
-    				}
+    			if (dirty & /*weeks*/ 1 && div_title_value !== (div_title_value = /*d*/ ctx[8].iso)) {
+    				attr_dev(div, "title", div_title_value);
     			}
-    		},
-    		i: function intro(local) {
-    			if (current) return;
-    			transition_in(default_slot, local);
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			transition_out(default_slot, local);
-    			current = false;
+
+    			if (dirty & /*weeks*/ 1) {
+    				toggle_class(div, "weekend", /*d*/ ctx[8].weekend);
+    			}
+
+    			if (dirty & /*weeks*/ 1) {
+    				toggle_class(div, "noday", /*d*/ ctx[8].noday);
+    			}
     		},
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(div);
-    			if (default_slot) default_slot.d(detaching);
     		}
     	};
 
@@ -4744,18 +4682,17 @@ var app = (function () {
     		block,
     		id: create_each_block_1.name,
     		type: "each",
-    		source: "(41:6) {#each week as d}",
+    		source: "(70:6) {#each week as d}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (39:2) {#each weeks as week}
+    // (68:2) {#each weeks as week}
     function create_each_block(ctx) {
     	let div;
     	let t;
-    	let current;
     	let each_value_1 = /*week*/ ctx[5];
     	validate_each_argument(each_value_1);
     	let each_blocks = [];
@@ -4763,10 +4700,6 @@ var app = (function () {
     	for (let i = 0; i < each_value_1.length; i += 1) {
     		each_blocks[i] = create_each_block_1(get_each_context_1(ctx, each_value_1, i));
     	}
-
-    	const out = i => transition_out(each_blocks[i], 1, 1, () => {
-    		each_blocks[i] = null;
-    	});
 
     	const block = {
     		c: function create() {
@@ -4777,8 +4710,8 @@ var app = (function () {
     			}
 
     			t = space();
-    			attr_dev(div, "class", "col svelte-8pigki");
-    			add_location(div, file, 39, 4, 811);
+    			attr_dev(div, "class", "week svelte-36q35w");
+    			add_location(div, file, 68, 4, 1376);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -4788,10 +4721,9 @@ var app = (function () {
     			}
 
     			append_dev(div, t);
-    			current = true;
     		},
     		p: function update(ctx, dirty) {
-    			if (dirty & /*$$scope, weeks*/ 5) {
+    			if (dirty & /*weeks*/ 1) {
     				each_value_1 = /*week*/ ctx[5];
     				validate_each_argument(each_value_1);
     				let i;
@@ -4801,41 +4733,19 @@ var app = (function () {
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(child_ctx, dirty);
-    						transition_in(each_blocks[i], 1);
     					} else {
     						each_blocks[i] = create_each_block_1(child_ctx);
     						each_blocks[i].c();
-    						transition_in(each_blocks[i], 1);
     						each_blocks[i].m(div, t);
     					}
     				}
 
-    				group_outros();
-
-    				for (i = each_value_1.length; i < each_blocks.length; i += 1) {
-    					out(i);
+    				for (; i < each_blocks.length; i += 1) {
+    					each_blocks[i].d(1);
     				}
 
-    				check_outros();
+    				each_blocks.length = each_value_1.length;
     			}
-    		},
-    		i: function intro(local) {
-    			if (current) return;
-
-    			for (let i = 0; i < each_value_1.length; i += 1) {
-    				transition_in(each_blocks[i]);
-    			}
-
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			each_blocks = each_blocks.filter(Boolean);
-
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				transition_out(each_blocks[i]);
-    			}
-
-    			current = false;
     		},
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(div);
@@ -4847,7 +4757,7 @@ var app = (function () {
     		block,
     		id: create_each_block.name,
     		type: "each",
-    		source: "(39:2) {#each weeks as week}",
+    		source: "(68:2) {#each weeks as week}",
     		ctx
     	});
 
@@ -4855,8 +4765,9 @@ var app = (function () {
     }
 
     function create_fragment$1(ctx) {
-    	let div;
-    	let current;
+    	let div0;
+    	let t1;
+    	let div1;
     	let each_value = /*weeks*/ ctx[0];
     	validate_each_argument(each_value);
     	let each_blocks = [];
@@ -4865,35 +4776,36 @@ var app = (function () {
     		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
     	}
 
-    	const out = i => transition_out(each_blocks[i], 1, 1, () => {
-    		each_blocks[i] = null;
-    	});
-
     	const block = {
     		c: function create() {
-    			div = element("div");
+    			div0 = element("div");
+    			div0.textContent = `${/*year*/ ctx[1]}`;
+    			t1 = space();
+    			div1 = element("div");
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].c();
     			}
 
-    			attr_dev(div, "class", "row svelte-8pigki");
-    			add_location(div, file, 37, 0, 765);
+    			attr_dev(div0, "class", "label svelte-36q35w");
+    			add_location(div0, file, 65, 0, 1297);
+    			attr_dev(div1, "class", "year svelte-36q35w");
+    			add_location(div1, file, 66, 0, 1329);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
-    			insert_dev(target, div, anchor);
+    			insert_dev(target, div0, anchor);
+    			insert_dev(target, t1, anchor);
+    			insert_dev(target, div1, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				each_blocks[i].m(div1, null);
     			}
-
-    			current = true;
     		},
     		p: function update(ctx, [dirty]) {
-    			if (dirty & /*weeks, $$scope*/ 5) {
+    			if (dirty & /*weeks*/ 1) {
     				each_value = /*weeks*/ ctx[0];
     				validate_each_argument(each_value);
     				let i;
@@ -4903,44 +4815,26 @@ var app = (function () {
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(child_ctx, dirty);
-    						transition_in(each_blocks[i], 1);
     					} else {
     						each_blocks[i] = create_each_block(child_ctx);
     						each_blocks[i].c();
-    						transition_in(each_blocks[i], 1);
-    						each_blocks[i].m(div, null);
+    						each_blocks[i].m(div1, null);
     					}
     				}
 
-    				group_outros();
-
-    				for (i = each_value.length; i < each_blocks.length; i += 1) {
-    					out(i);
+    				for (; i < each_blocks.length; i += 1) {
+    					each_blocks[i].d(1);
     				}
 
-    				check_outros();
+    				each_blocks.length = each_value.length;
     			}
     		},
-    		i: function intro(local) {
-    			if (current) return;
-
-    			for (let i = 0; i < each_value.length; i += 1) {
-    				transition_in(each_blocks[i]);
-    			}
-
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			each_blocks = each_blocks.filter(Boolean);
-
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				transition_out(each_blocks[i]);
-    			}
-
-    			current = false;
-    		},
+    		i: noop,
+    		o: noop,
     		d: function destroy(detaching) {
-    			if (detaching) detach_dev(div);
+    			if (detaching) detach_dev(div0);
+    			if (detaching) detach_dev(t1);
+    			if (detaching) detach_dev(div1);
     			destroy_each(each_blocks, detaching);
     		}
     	};
@@ -4958,14 +4852,32 @@ var app = (function () {
 
     function instance$1($$self, $$props, $$invalidate) {
     	let { $$slots: slots = {}, $$scope } = $$props;
-    	validate_slots("Year", slots, ['default']);
+    	validate_slots("Year", slots, []);
     	let { date = "" } = $$props;
     	date = src(date);
-    	let start = date.startOf("year").minus(1, "second");
+    	let year = date.year();
+    	let start = date.startOf("year").startOf("week").minus(1, "second");
     	let weeks = start.every("week", date.endOf("year"));
 
-    	weeks = weeks.map(w => {
-    		return w.every("day", date.endOf("week"));
+    	weeks = weeks.map(mon => {
+    		let sun = mon.endOf("week").add(1, "second");
+    		return mon.every("day", sun);
+    	});
+
+    	let today = src.now();
+
+    	weeks = weeks.map(week => {
+    		return week.map(d => {
+    			let noday = d.year() !== year;
+    			let day = d.day();
+
+    			return {
+    				iso: d.format("iso-short"),
+    				noday,
+    				today: d.isSame(today, "day"),
+    				weekend: !noday && (day === 0 || day === 1)
+    			};
+    		});
     	});
 
     	const writable_props = ["date"];
@@ -4975,30 +4887,38 @@ var app = (function () {
     	});
 
     	$$self.$$set = $$props => {
-    		if ("date" in $$props) $$invalidate(1, date = $$props.date);
-    		if ("$$scope" in $$props) $$invalidate(2, $$scope = $$props.$$scope);
+    		if ("date" in $$props) $$invalidate(2, date = $$props.date);
     	};
 
-    	$$self.$capture_state = () => ({ spacetime: src, date, start, weeks });
+    	$$self.$capture_state = () => ({
+    		spacetime: src,
+    		date,
+    		year,
+    		start,
+    		weeks,
+    		today
+    	});
 
     	$$self.$inject_state = $$props => {
-    		if ("date" in $$props) $$invalidate(1, date = $$props.date);
+    		if ("date" in $$props) $$invalidate(2, date = $$props.date);
+    		if ("year" in $$props) $$invalidate(1, year = $$props.year);
     		if ("start" in $$props) start = $$props.start;
     		if ("weeks" in $$props) $$invalidate(0, weeks = $$props.weeks);
+    		if ("today" in $$props) today = $$props.today;
     	};
 
     	if ($$props && "$$inject" in $$props) {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [weeks, date, $$scope, slots];
+    	return [weeks, year, date];
     }
 
     class Year extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		if (!document.getElementById("svelte-8pigki-style")) add_css();
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, { date: 1 });
+    		if (!document.getElementById("svelte-36q35w-style")) add_css();
+    		init(this, options, instance$1, create_fragment$1, safe_not_equal, { date: 2 });
 
     		dispatch_dev("SvelteRegisterComponent", {
     			component: this,
@@ -5022,12 +4942,12 @@ var app = (function () {
 
     function add_css$1() {
     	var style = element("style");
-    	style.id = "svelte-bb7tsf-style";
-    	style.textContent = ".container.svelte-bb7tsf{max-width:1200px}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRGVtby5zdmVsdGUiLCJzb3VyY2VzIjpbIkRlbW8uc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCB7IFllYXIsIERheSB9IGZyb20gJy4vc3JjJ1xuPC9zY3JpcHQ+XG5cbjxzdHlsZT5cbiAgLmNvbnRhaW5lciB7XG4gICAgbWF4LXdpZHRoOiAxMjAwcHg7XG4gIH1cbjwvc3R5bGU+XG5cbjxkaXY+XG4gIDxkaXY+XG4gICAgPGEgaHJlZj1cImh0dHBzOi8vZ2l0aHViLmNvbS9zcGVuY2VybW91bnRhaW4vc29tZWhvdy15ZWFyXCI+c29tZWhvdy15ZWFyPC9hPlxuICAgIDxzcGFuIGNsYXNzPVwiZjA4IGdyZXlcIj5cbiAgICAgIC0gaXRzIGEgc3ZlbHRlIGh0bWwgeWVhci1pbmZvZ3JhcGhpYyBjb21wb25lbnQgdXNpbmcgc3BhY2V0aW1lLlxuICAgIDwvc3Bhbj5cbiAgPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJjb250YWluZXJcIj5cbiAgICA8WWVhciBkYXRlPVwibWFyY2ggMjAyMFwiPlxuICAgICAgPERheSBkYXRlPVwibWFyY2ggMjh0aFwiIC8+XG4gICAgPC9ZZWFyPlxuICA8L2Rpdj5cbjwvZGl2PlxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUtFLFVBQVUsY0FBQyxDQUFDLEFBQ1YsU0FBUyxDQUFFLE1BQU0sQUFDbkIsQ0FBQyJ9 */";
+    	style.id = "svelte-1rcg7lw-style";
+    	style.textContent = ".container.svelte-1rcg7lw{margin:50px}.m3.svelte-1rcg7lw{margin:3rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRGVtby5zdmVsdGUiLCJzb3VyY2VzIjpbIkRlbW8uc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCB7IFllYXIsIERheSB9IGZyb20gJy4vc3JjJ1xuPC9zY3JpcHQ+XG5cbjxzdHlsZT5cbiAgLmNvbnRhaW5lciB7XG4gICAgbWFyZ2luOiA1MHB4O1xuICB9XG4gIC5tMyB7XG4gICAgbWFyZ2luOiAzcmVtO1xuICB9XG48L3N0eWxlPlxuXG48ZGl2PlxuICA8ZGl2IGNsYXNzPVwibTNcIj5cbiAgICA8YSBocmVmPVwiaHR0cHM6Ly9naXRodWIuY29tL3NwZW5jZXJtb3VudGFpbi9zb21laG93LXllYXJcIj5zb21laG93LXllYXI8L2E+XG4gICAgPHNwYW4gY2xhc3M9XCJmMDggZ3JleSBcIj5cbiAgICAgIC0gaXRzIGEgc3ZlbHRlIGh0bWwgeWVhci1pbmZvZ3JhcGhpYyBjb21wb25lbnQgdXNpbmcgc3BhY2V0aW1lLlxuICAgIDwvc3Bhbj5cbiAgPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJjb250YWluZXJcIj5cbiAgICA8WWVhciBkYXRlPVwibWFyY2ggMjAyMFwiPlxuICAgICAgPERheSBkYXRlPVwibWFyY2ggMjh0aFwiIC8+XG4gICAgPC9ZZWFyPlxuICA8L2Rpdj5cbjwvZGl2PlxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUtFLFVBQVUsZUFBQyxDQUFDLEFBQ1YsTUFBTSxDQUFFLElBQUksQUFDZCxDQUFDLEFBQ0QsR0FBRyxlQUFDLENBQUMsQUFDSCxNQUFNLENBQUUsSUFBSSxBQUNkLENBQUMifQ== */";
     	append_dev(document.head, style);
     }
 
-    // (19:4) <Year date="march 2020">
+    // (22:4) <Year date="march 2020">
     function create_default_slot(ctx) {
     	let day;
     	let current;
@@ -5064,7 +4984,7 @@ var app = (function () {
     		block,
     		id: create_default_slot.name,
     		type: "slot",
-    		source: "(19:4) <Year date=\\\"march 2020\\\">",
+    		source: "(22:4) <Year date=\\\"march 2020\\\">",
     		ctx
     	});
 
@@ -5104,13 +5024,14 @@ var app = (function () {
     			div1 = element("div");
     			create_component(year.$$.fragment);
     			attr_dev(a, "href", "https://github.com/spencermountain/somehow-year");
-    			add_location(a, file$1, 12, 4, 134);
-    			attr_dev(span, "class", "f08 grey");
-    			add_location(span, file$1, 13, 4, 213);
-    			add_location(div0, file$1, 11, 2, 124);
-    			attr_dev(div1, "class", "container svelte-bb7tsf");
-    			add_location(div1, file$1, 17, 2, 330);
-    			add_location(div2, file$1, 10, 0, 116);
+    			add_location(a, file$1, 15, 4, 170);
+    			attr_dev(span, "class", "f08 grey ");
+    			add_location(span, file$1, 16, 4, 249);
+    			attr_dev(div0, "class", "m3 svelte-1rcg7lw");
+    			add_location(div0, file$1, 14, 2, 149);
+    			attr_dev(div1, "class", "container svelte-1rcg7lw");
+    			add_location(div1, file$1, 20, 2, 367);
+    			add_location(div2, file$1, 13, 0, 141);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -5177,7 +5098,7 @@ var app = (function () {
     class Demo extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		if (!document.getElementById("svelte-bb7tsf-style")) add_css$1();
+    		if (!document.getElementById("svelte-1rcg7lw-style")) add_css$1();
     		init(this, options, instance$2, create_fragment$2, safe_not_equal, {});
 
     		dispatch_dev("SvelteRegisterComponent", {

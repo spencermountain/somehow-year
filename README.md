@@ -39,8 +39,8 @@ week-centered year from start to end dates, inclusive
 
 ### API
 
-- <Year date=""/>
-- <Day date="" color=""/>
+- `<Year date=""/>`
+- `<Day date="" color=""/>`
 
 ### See also:
 

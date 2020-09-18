@@ -4,14 +4,17 @@
 
 <style>
   .container {
-    max-width: 1200px;
+    margin: 50px;
+  }
+  .m3 {
+    margin: 3rem;
   }
 </style>
 
 <div>
-  <div>
+  <div class="m3">
     <a href="https://github.com/spencermountain/somehow-year">somehow-year</a>
-    <span class="f08 grey">
+    <span class="f08 grey ">
       - its a svelte html year-infographic component using spacetime.
     </span>
   </div>
