@@ -28,7 +28,20 @@
     })
     // render data
     return weeks.map(week => {
+      let monthChange = week[0].month() !== week[week.length - 1].month()
+      let clean = false
+      if (week[0].date() === 1) {
+        monthChange = true
+        clean = true
+      }
       return week.map(d => {
+        let inMonth = true
+        if (monthChange && d.month() !== week[0].month()) {
+          inMonth = false
+        }
+        if (clean) {
+          inMonth = false
+        }
         let noday = d.year() !== year
         let day = d.day()
         let iso = d.format('iso-short')
@@ -36,6 +49,8 @@
         return {
           iso: iso,
           noday: noday,
+          inMonth: inMonth,
+          monthChange: monthChange,
           today: d.isSame(today, 'day'),
           color: meta.color || 'none',
           weekend: !noday && (day === 0 || day === 1)
@@ -52,6 +67,7 @@
 
 <style>
   .year {
+    position: relative;
     display: flex;
     flex-direction: row;
     justify-content: space-around;
@@ -66,6 +82,7 @@
     flex-direction: column !important;
   }
   .week {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column-reverse;
@@ -98,11 +115,51 @@
   .label {
     font-size: 0.9rem;
   }
+  /* horizontal */
+  .twoMonthHor {
+    padding-left: 15px;
+  }
+  .inMonthHor {
+    position: relative;
+    left: -15px;
+  }
+  /* vertical */
+  .twoMonthVer {
+    padding-top: 35px;
+  }
+  .inMonthVer {
+    position: relative;
+    top: -35px;
+  }
+  /* medium */
+  @media only screen and (max-width: 800px) {
+    /* horizontal */
+    .twoMonthHor {
+      padding-left: 5px;
+    }
+    .inMonthHor {
+      left: -5px;
+    }
+  }
   @media only screen and (max-width: 400px) {
     .day {
       border-radius: 2px;
       margin: 0px;
       box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    }
+    /* vertical */
+    .twoMonthVer {
+      padding-top: 20px;
+    }
+    .inMonthVer {
+      top: -20px;
+    }
+    /* horizontal */
+    .twoMonthHor {
+      padding-left: 0px;
+    }
+    .inMonthHor {
+      left: -0px;
     }
   }
 </style>
@@ -110,12 +167,18 @@
 <div class="label">{label}</div>
 <div class="year" class:vertical>
   {#each weeks as week}
-    <div class="week" class:vertWeek={vertical}>
+    <div
+      class="week"
+      class:vertWeek={vertical}
+      class:twoMonthHor={!vertical && week[0].monthChange}
+      class:twoMonthVer={vertical && week[0].monthChange}>
       {#each week as d}
         <div
           class="day square"
           class:weekend={d.weekend}
           class:noday={d.noday}
+          class:inMonthHor={!vertical && d.monthChange && d.inMonth}
+          class:inMonthVer={vertical && d.monthChange && d.inMonth}
           style="background-color:{d.color};"
           title={d.iso} />
       {/each}
