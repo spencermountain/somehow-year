@@ -19,7 +19,7 @@
     </span>
   </div>
   <div class="container">
-    <Year date="march 2020">
+    <Year date="march 2020" vertical={false}>
       <Day date="march 28th" />
     </Year>
     <div class="m3" />

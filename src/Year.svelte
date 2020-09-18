@@ -4,12 +4,15 @@
   import { setContext } from 'svelte'
   import { onMount } from 'svelte'
   export let date = ''
+  export let vertical = false
 
   // pre-work
   let today = spacetime.now()
   date = spacetime(date)
   let year = date.year()
   setContext('year', year)
+
+  export let label = year
 
   // compute the year
   const calculate = function(date) {
@@ -59,36 +62,58 @@
     height: 100%;
     min-height: 100px;
   }
-  .day {
-    border-radius: 2px;
-    flex: 1;
-    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.2);
-    margin: 1px;
-  }
-  .noday {
-    flex: 1;
-    box-shadow: none;
-  }
-  .weekend {
-    background-color: #f5f5f5;
+  .vertical {
+    flex-direction: column !important;
   }
   .week {
     flex: 1;
     display: flex;
     flex-direction: column-reverse;
   }
+  .vertWeek {
+    flex-direction: row;
+  }
+  .day {
+    border-radius: 2px;
+    flex: 1;
+    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.2);
+    margin: 1px;
+  }
+  .square {
+    width: 100%;
+  }
+  .square:after {
+    content: '';
+    display: block;
+    padding-bottom: 100%;
+  }
+  .noday {
+    flex: 1;
+    box-shadow: none !important;
+  }
+  .weekend {
+    /* background-color: #f5f5f5; */
+    background-color: rgba(245, 245, 245, 0.6);
+  }
   .label {
     font-size: 0.9rem;
   }
+  @media only screen and (max-width: 400px) {
+    .day {
+      border-radius: 2px;
+      margin: 0px;
+      box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    }
+  }
 </style>
 
-<div class="label">{year}</div>
-<div class="year">
+<div class="label">{label}</div>
+<div class="year" class:vertical>
   {#each weeks as week}
-    <div class="week">
+    <div class="week" class:vertWeek={vertical}>
       {#each week as d}
         <div
-          class="day"
+          class="day square"
           class:weekend={d.weekend}
           class:noday={d.noday}
           style="background-color:{d.color};"
