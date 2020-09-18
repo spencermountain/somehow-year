@@ -40,7 +40,12 @@ week-centered year from start to end dates, inclusive
 </Year>
 ```
 
-![image](https://user-images.githubusercontent.com/399657/93625275-acaf8b00-f9af-11ea-993d-685100e17c3d.png)
+![image](https://user-images.githubusercontent.com/399657/93631446-9ad2e580-f9b9-11ea-8d55-d3ed0739e28b.png)
+
+### Vertical
+
+pass-in vertical={true}
+![image](https://user-images.githubusercontent.com/399657/93631491-afaf7900-f9b9-11ea-96f7-b0a2ae394b52.png)
 
 ### API
 

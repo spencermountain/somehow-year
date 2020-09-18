@@ -144,6 +144,7 @@
     font-size: 8px;
     margin-bottom: 5px;
     height: 1px;
+    min-width: 1px;
   }
   /* medium */
   @media only screen and (max-width: 800px) {
@@ -172,10 +173,10 @@
     }
     /* vertical */
     .twoMonthVer {
-      padding-top: 20px;
+      padding-top: 10px;
     }
     .inMonthVer {
-      top: -20px;
+      top: -10px;
     }
   }
 </style>
