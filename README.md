@@ -32,10 +32,15 @@ week-centered year from start to end dates, inclusive
   import { Year, Day } from './src'
 </script>
 
-<Year date="march 2012">
+<Year date="2020">
+  <Day date="march 28th" color="blue" />
+</Year>
+<Year date="2021">
   <Day date="march 28th" color="blue" />
 </Year>
 ```
+
+![image](https://user-images.githubusercontent.com/399657/93625275-acaf8b00-f9af-11ea-993d-685100e17c3d.png)
 
 ### API
 
