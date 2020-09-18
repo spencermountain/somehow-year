@@ -4,6 +4,12 @@ var app = (function () {
     'use strict';
 
     function noop() { }
+    function assign(tar, src) {
+        // @ts-ignore
+        for (const k in src)
+            tar[k] = src[k];
+        return tar;
+    }
     function add_location(element, file, line, column, char) {
         element.__svelte_meta = {
             loc: { file, line, column, char }
@@ -26,6 +32,57 @@ var app = (function () {
     }
     function is_empty(obj) {
         return Object.keys(obj).length === 0;
+    }
+    function validate_store(store, name) {
+        if (store != null && typeof store.subscribe !== 'function') {
+            throw new Error(`'${name}' is not a store with a 'subscribe' method`);
+        }
+    }
+    function subscribe(store, ...callbacks) {
+        if (store == null) {
+            return noop;
+        }
+        const unsub = store.subscribe(...callbacks);
+        return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
+    }
+    function component_subscribe(component, store, callback) {
+        component.$$.on_destroy.push(subscribe(store, callback));
+    }
+    function create_slot(definition, ctx, $$scope, fn) {
+        if (definition) {
+            const slot_ctx = get_slot_context(definition, ctx, $$scope, fn);
+            return definition[0](slot_ctx);
+        }
+    }
+    function get_slot_context(definition, ctx, $$scope, fn) {
+        return definition[1] && fn
+            ? assign($$scope.ctx.slice(), definition[1](fn(ctx)))
+            : $$scope.ctx;
+    }
+    function get_slot_changes(definition, $$scope, dirty, fn) {
+        if (definition[2] && fn) {
+            const lets = definition[2](fn(dirty));
+            if ($$scope.dirty === undefined) {
+                return lets;
+            }
+            if (typeof lets === 'object') {
+                const merged = [];
+                const len = Math.max($$scope.dirty.length, lets.length);
+                for (let i = 0; i < len; i += 1) {
+                    merged[i] = $$scope.dirty[i] | lets[i];
+                }
+                return merged;
+            }
+            return $$scope.dirty | lets;
+        }
+        return $$scope.dirty;
+    }
+    function update_slot(slot, slot_definition, ctx, $$scope, dirty, get_slot_changes_fn, get_slot_context_fn) {
+        const slot_changes = get_slot_changes(slot_definition, $$scope, dirty, get_slot_changes_fn);
+        if (slot_changes) {
+            const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
+            slot.p(slot_context, slot_changes);
+        }
     }
 
     function append(target, node) {
@@ -61,6 +118,9 @@ var app = (function () {
     function children(element) {
         return Array.from(element.childNodes);
     }
+    function set_style(node, key, value, important) {
+        node.style.setProperty(key, value, important ? 'important' : '');
+    }
     function toggle_class(element, name, toggle) {
         element.classList[toggle ? 'add' : 'remove'](name);
     }
@@ -73,6 +133,20 @@ var app = (function () {
     let current_component;
     function set_current_component(component) {
         current_component = component;
+    }
+    function get_current_component() {
+        if (!current_component)
+            throw new Error(`Function called outside component initialization`);
+        return current_component;
+    }
+    function onMount(fn) {
+        get_current_component().$$.on_mount.push(fn);
+    }
+    function setContext(key, context) {
+        get_current_component().$$.context.set(key, context);
+    }
+    function getContext(key) {
+        return get_current_component().$$.context.get(key);
     }
 
     const dirty_components = [];
@@ -4538,8 +4612,9 @@ var app = (function () {
     	let { date = "" } = $$props;
     	let { color = "blue" } = $$props;
     	let { label = "" } = $$props;
+    	let year = getContext("year");
     	color = spencerColor.colors[color] || color;
-    	date = src(date);
+    	date = src(date, null, { today: { year } });
     	let iso = date.format("iso-short");
 
     	days.update(obj => {
@@ -4562,10 +4637,12 @@ var app = (function () {
     	$$self.$capture_state = () => ({
     		days,
     		spacetime: src,
+    		getContext,
     		c: spencerColor,
     		date,
     		color,
     		label,
+    		year,
     		iso
     	});
 
@@ -4573,6 +4650,7 @@ var app = (function () {
     		if ("date" in $$props) $$invalidate(0, date = $$props.date);
     		if ("color" in $$props) $$invalidate(1, color = $$props.color);
     		if ("label" in $$props) $$invalidate(2, label = $$props.label);
+    		if ("year" in $$props) year = $$props.year;
     		if ("iso" in $$props) iso = $$props.iso;
     	};
 
@@ -4626,24 +4704,24 @@ var app = (function () {
 
     function add_css() {
     	var style = element("style");
-    	style.id = "svelte-36q35w-style";
-    	style.textContent = ".year.svelte-36q35w{display:flex;flex-direction:row;justify-content:space-around;align-items:stretch;text-align:center;flex-wrap:nowrap;align-self:stretch;height:100%;min-height:100px}.day.svelte-36q35w{flex:1;box-shadow:1px 1px 2px 0px rgba(0, 0, 0, 0.2);margin:1px}.noday.svelte-36q35w{flex:1;box-shadow:none}.weekend.svelte-36q35w{background-color:#f7f7f7;opacity:0.5}.week.svelte-36q35w{flex:1;display:flex;flex-direction:column-reverse}.label.svelte-36q35w{font-size:0.9rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiWWVhci5zdmVsdGUiLCJzb3VyY2VzIjpbIlllYXIuc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCBzcGFjZXRpbWUgZnJvbSAnc3BhY2V0aW1lJ1xuICBleHBvcnQgbGV0IGRhdGUgPSAnJ1xuICBkYXRlID0gc3BhY2V0aW1lKGRhdGUpXG4gIGxldCB5ZWFyID0gZGF0ZS55ZWFyKClcbiAgbGV0IHN0YXJ0ID0gZGF0ZVxuICAgIC5zdGFydE9mKCd5ZWFyJylcbiAgICAuc3RhcnRPZignd2VlaycpXG4gICAgLm1pbnVzKDEsICdzZWNvbmQnKVxuICBsZXQgd2Vla3MgPSBzdGFydC5ldmVyeSgnd2VlaycsIGRhdGUuZW5kT2YoJ3llYXInKSlcbiAgd2Vla3MgPSB3ZWVrcy5tYXAobW9uID0+IHtcbiAgICBsZXQgc3VuID0gbW9uLmVuZE9mKCd3ZWVrJykuYWRkKDEsICdzZWNvbmQnKVxuICAgIHJldHVybiBtb24uZXZlcnkoJ2RheScsIHN1bilcbiAgfSlcblxuICBsZXQgdG9kYXkgPSBzcGFjZXRpbWUubm93KClcbiAgd2Vla3MgPSB3ZWVrcy5tYXAod2VlayA9PiB7XG4gICAgcmV0dXJuIHdlZWsubWFwKGQgPT4ge1xuICAgICAgbGV0IG5vZGF5ID0gZC55ZWFyKCkgIT09IHllYXJcbiAgICAgIGxldCBkYXkgPSBkLmRheSgpXG4gICAgICByZXR1cm4ge1xuICAgICAgICBpc286IGQuZm9ybWF0KCdpc28tc2hvcnQnKSxcbiAgICAgICAgbm9kYXk6IG5vZGF5LFxuICAgICAgICB0b2RheTogZC5pc1NhbWUodG9kYXksICdkYXknKSxcbiAgICAgICAgd2Vla2VuZDogIW5vZGF5ICYmIChkYXkgPT09IDAgfHwgZGF5ID09PSAxKVxuICAgICAgfVxuICAgIH0pXG4gIH0pXG48L3NjcmlwdD5cblxuPHN0eWxlPlxuICAueWVhciB7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBmbGV4LWRpcmVjdGlvbjogcm93O1xuICAgIGp1c3RpZnktY29udGVudDogc3BhY2UtYXJvdW5kO1xuICAgIGFsaWduLWl0ZW1zOiBzdHJldGNoO1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICBmbGV4LXdyYXA6IG5vd3JhcDtcbiAgICBhbGlnbi1zZWxmOiBzdHJldGNoO1xuICAgIGhlaWdodDogMTAwJTtcbiAgICBtaW4taGVpZ2h0OiAxMDBweDtcbiAgfVxuICAuZGF5IHtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IDFweCAxcHggMnB4IDBweCByZ2JhKDAsIDAsIDAsIDAuMik7XG4gICAgbWFyZ2luOiAxcHg7XG4gIH1cbiAgLm5vZGF5IHtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IG5vbmU7XG4gIH1cbiAgLndlZWtlbmQge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmN2Y3Zjc7XG4gICAgb3BhY2l0eTogMC41O1xuICB9XG4gIC53ZWVrIHtcbiAgICBmbGV4OiAxO1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbi1yZXZlcnNlO1xuICB9XG4gIC5sYWJlbCB7XG4gICAgZm9udC1zaXplOiAwLjlyZW07XG4gIH1cbjwvc3R5bGU+XG5cbjxkaXYgY2xhc3M9XCJsYWJlbFwiPnt5ZWFyfTwvZGl2PlxuPGRpdiBjbGFzcz1cInllYXJcIj5cbiAgeyNlYWNoIHdlZWtzIGFzIHdlZWt9XG4gICAgPGRpdiBjbGFzcz1cIndlZWtcIj5cbiAgICAgIHsjZWFjaCB3ZWVrIGFzIGR9XG4gICAgICAgIDxkaXZcbiAgICAgICAgICBjbGFzcz1cImRheVwiXG4gICAgICAgICAgY2xhc3M6d2Vla2VuZD17ZC53ZWVrZW5kfVxuICAgICAgICAgIGNsYXNzOm5vZGF5PXtkLm5vZGF5fVxuICAgICAgICAgIHRpdGxlPXtkLmlzb30gLz5cbiAgICAgIHsvZWFjaH1cbiAgICA8L2Rpdj5cbiAgey9lYWNofVxuPC9kaXY+XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBK0JFLEtBQUssY0FBQyxDQUFDLEFBQ0wsT0FBTyxDQUFFLElBQUksQ0FDYixjQUFjLENBQUUsR0FBRyxDQUNuQixlQUFlLENBQUUsWUFBWSxDQUM3QixXQUFXLENBQUUsT0FBTyxDQUNwQixVQUFVLENBQUUsTUFBTSxDQUNsQixTQUFTLENBQUUsTUFBTSxDQUNqQixVQUFVLENBQUUsT0FBTyxDQUNuQixNQUFNLENBQUUsSUFBSSxDQUNaLFVBQVUsQ0FBRSxLQUFLLEFBQ25CLENBQUMsQUFDRCxJQUFJLGNBQUMsQ0FBQyxBQUNKLElBQUksQ0FBRSxDQUFDLENBQ1AsVUFBVSxDQUFFLEdBQUcsQ0FBQyxHQUFHLENBQUMsR0FBRyxDQUFDLEdBQUcsQ0FBQyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLEdBQUcsQ0FBQyxDQUM5QyxNQUFNLENBQUUsR0FBRyxBQUNiLENBQUMsQUFDRCxNQUFNLGNBQUMsQ0FBQyxBQUNOLElBQUksQ0FBRSxDQUFDLENBQ1AsVUFBVSxDQUFFLElBQUksQUFDbEIsQ0FBQyxBQUNELFFBQVEsY0FBQyxDQUFDLEFBQ1IsZ0JBQWdCLENBQUUsT0FBTyxDQUN6QixPQUFPLENBQUUsR0FBRyxBQUNkLENBQUMsQUFDRCxLQUFLLGNBQUMsQ0FBQyxBQUNMLElBQUksQ0FBRSxDQUFDLENBQ1AsT0FBTyxDQUFFLElBQUksQ0FDYixjQUFjLENBQUUsY0FBYyxBQUNoQyxDQUFDLEFBQ0QsTUFBTSxjQUFDLENBQUMsQUFDTixTQUFTLENBQUUsTUFBTSxBQUNuQixDQUFDIn0= */";
+    	style.id = "svelte-ppyhl7-style";
+    	style.textContent = ".year.svelte-ppyhl7{display:flex;flex-direction:row;justify-content:space-around;align-items:stretch;text-align:center;flex-wrap:nowrap;align-self:stretch;height:100%;min-height:100px}.day.svelte-ppyhl7{border-radius:2px;flex:1;box-shadow:1px 1px 2px 0px rgba(0, 0, 0, 0.2);margin:1px}.noday.svelte-ppyhl7{flex:1;box-shadow:none}.weekend.svelte-ppyhl7{background-color:#f5f5f5}.week.svelte-ppyhl7{flex:1;display:flex;flex-direction:column-reverse}.label.svelte-ppyhl7{font-size:0.9rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiWWVhci5zdmVsdGUiLCJzb3VyY2VzIjpbIlllYXIuc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCBzcGFjZXRpbWUgZnJvbSAnc3BhY2V0aW1lJ1xuICBpbXBvcnQgeyBkYXlzIH0gZnJvbSAnLi9zdG9yZXMnXG4gIGltcG9ydCB7IHNldENvbnRleHQgfSBmcm9tICdzdmVsdGUnXG4gIGltcG9ydCB7IG9uTW91bnQgfSBmcm9tICdzdmVsdGUnXG4gIGV4cG9ydCBsZXQgZGF0ZSA9ICcnXG5cbiAgLy8gcHJlLXdvcmtcbiAgbGV0IHRvZGF5ID0gc3BhY2V0aW1lLm5vdygpXG4gIGRhdGUgPSBzcGFjZXRpbWUoZGF0ZSlcbiAgbGV0IHllYXIgPSBkYXRlLnllYXIoKVxuICBzZXRDb250ZXh0KCd5ZWFyJywgeWVhcilcblxuICAvLyBjb21wdXRlIHRoZSB5ZWFyXG4gIGNvbnN0IGNhbGN1bGF0ZSA9IGZ1bmN0aW9uKGRhdGUpIHtcbiAgICBsZXQgc3RhcnQgPSBkYXRlXG4gICAgICAuc3RhcnRPZigneWVhcicpXG4gICAgICAuc3RhcnRPZignd2VlaycpXG4gICAgICAubWludXMoMSwgJ3NlY29uZCcpXG4gICAgLy8gZ2V0IGVhY2ggZGF5IGluIHRoZSB5ZWFyLCBieSB3ZWVrICNcbiAgICBsZXQgd2Vla3MgPSBzdGFydC5ldmVyeSgnd2VlaycsIGRhdGUuZW5kT2YoJ3llYXInKSlcbiAgICB3ZWVrcyA9IHdlZWtzLm1hcChtb24gPT4ge1xuICAgICAgbGV0IHN1biA9IG1vbi5lbmRPZignd2VlaycpLmFkZCgxLCAnc2Vjb25kJylcbiAgICAgIHJldHVybiBtb24uZXZlcnkoJ2RheScsIHN1bilcbiAgICB9KVxuICAgIC8vIHJlbmRlciBkYXRhXG4gICAgcmV0dXJuIHdlZWtzLm1hcCh3ZWVrID0+IHtcbiAgICAgIHJldHVybiB3ZWVrLm1hcChkID0+IHtcbiAgICAgICAgbGV0IG5vZGF5ID0gZC55ZWFyKCkgIT09IHllYXJcbiAgICAgICAgbGV0IGRheSA9IGQuZGF5KClcbiAgICAgICAgbGV0IGlzbyA9IGQuZm9ybWF0KCdpc28tc2hvcnQnKVxuICAgICAgICBsZXQgbWV0YSA9ICRkYXlzW2lzb10gfHwge31cbiAgICAgICAgcmV0dXJuIHtcbiAgICAgICAgICBpc286IGlzbyxcbiAgICAgICAgICBub2RheTogbm9kYXksXG4gICAgICAgICAgdG9kYXk6IGQuaXNTYW1lKHRvZGF5LCAnZGF5JyksXG4gICAgICAgICAgY29sb3I6IG1ldGEuY29sb3IgfHwgJ25vbmUnLFxuICAgICAgICAgIHdlZWtlbmQ6ICFub2RheSAmJiAoZGF5ID09PSAwIHx8IGRheSA9PT0gMSlcbiAgICAgICAgfVxuICAgICAgfSlcbiAgICB9KVxuICB9XG5cbiAgbGV0IHdlZWtzID0gW11cbiAgb25Nb3VudCgoKSA9PiB7XG4gICAgd2Vla3MgPSBjYWxjdWxhdGUoZGF0ZSlcbiAgfSlcbjwvc2NyaXB0PlxuXG48c3R5bGU+XG4gIC55ZWFyIHtcbiAgICBkaXNwbGF5OiBmbGV4O1xuICAgIGZsZXgtZGlyZWN0aW9uOiByb3c7XG4gICAganVzdGlmeS1jb250ZW50OiBzcGFjZS1hcm91bmQ7XG4gICAgYWxpZ24taXRlbXM6IHN0cmV0Y2g7XG4gICAgdGV4dC1hbGlnbjogY2VudGVyO1xuICAgIGZsZXgtd3JhcDogbm93cmFwO1xuICAgIGFsaWduLXNlbGY6IHN0cmV0Y2g7XG4gICAgaGVpZ2h0OiAxMDAlO1xuICAgIG1pbi1oZWlnaHQ6IDEwMHB4O1xuICB9XG4gIC5kYXkge1xuICAgIGJvcmRlci1yYWRpdXM6IDJweDtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IDFweCAxcHggMnB4IDBweCByZ2JhKDAsIDAsIDAsIDAuMik7XG4gICAgbWFyZ2luOiAxcHg7XG4gIH1cbiAgLm5vZGF5IHtcbiAgICBmbGV4OiAxO1xuICAgIGJveC1zaGFkb3c6IG5vbmU7XG4gIH1cbiAgLndlZWtlbmQge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XG4gIH1cbiAgLndlZWsge1xuICAgIGZsZXg6IDE7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uLXJldmVyc2U7XG4gIH1cbiAgLmxhYmVsIHtcbiAgICBmb250LXNpemU6IDAuOXJlbTtcbiAgfVxuPC9zdHlsZT5cblxuPGRpdiBjbGFzcz1cImxhYmVsXCI+e3llYXJ9PC9kaXY+XG48ZGl2IGNsYXNzPVwieWVhclwiPlxuICB7I2VhY2ggd2Vla3MgYXMgd2Vla31cbiAgICA8ZGl2IGNsYXNzPVwid2Vla1wiPlxuICAgICAgeyNlYWNoIHdlZWsgYXMgZH1cbiAgICAgICAgPGRpdlxuICAgICAgICAgIGNsYXNzPVwiZGF5XCJcbiAgICAgICAgICBjbGFzczp3ZWVrZW5kPXtkLndlZWtlbmR9XG4gICAgICAgICAgY2xhc3M6bm9kYXk9e2Qubm9kYXl9XG4gICAgICAgICAgc3R5bGU9XCJiYWNrZ3JvdW5kLWNvbG9yOntkLmNvbG9yfTtcIlxuICAgICAgICAgIHRpdGxlPXtkLmlzb30gLz5cbiAgICAgIHsvZWFjaH1cbiAgICA8L2Rpdj5cbiAgey9lYWNofVxuPC9kaXY+XG48c2xvdCAvPlxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQWtERSxLQUFLLGNBQUMsQ0FBQyxBQUNMLE9BQU8sQ0FBRSxJQUFJLENBQ2IsY0FBYyxDQUFFLEdBQUcsQ0FDbkIsZUFBZSxDQUFFLFlBQVksQ0FDN0IsV0FBVyxDQUFFLE9BQU8sQ0FDcEIsVUFBVSxDQUFFLE1BQU0sQ0FDbEIsU0FBUyxDQUFFLE1BQU0sQ0FDakIsVUFBVSxDQUFFLE9BQU8sQ0FDbkIsTUFBTSxDQUFFLElBQUksQ0FDWixVQUFVLENBQUUsS0FBSyxBQUNuQixDQUFDLEFBQ0QsSUFBSSxjQUFDLENBQUMsQUFDSixhQUFhLENBQUUsR0FBRyxDQUNsQixJQUFJLENBQUUsQ0FBQyxDQUNQLFVBQVUsQ0FBRSxHQUFHLENBQUMsR0FBRyxDQUFDLEdBQUcsQ0FBQyxHQUFHLENBQUMsS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxHQUFHLENBQUMsQ0FDOUMsTUFBTSxDQUFFLEdBQUcsQUFDYixDQUFDLEFBQ0QsTUFBTSxjQUFDLENBQUMsQUFDTixJQUFJLENBQUUsQ0FBQyxDQUNQLFVBQVUsQ0FBRSxJQUFJLEFBQ2xCLENBQUMsQUFDRCxRQUFRLGNBQUMsQ0FBQyxBQUNSLGdCQUFnQixDQUFFLE9BQU8sQUFDM0IsQ0FBQyxBQUNELEtBQUssY0FBQyxDQUFDLEFBQ0wsSUFBSSxDQUFFLENBQUMsQ0FDUCxPQUFPLENBQUUsSUFBSSxDQUNiLGNBQWMsQ0FBRSxjQUFjLEFBQ2hDLENBQUMsQUFDRCxNQUFNLGNBQUMsQ0FBQyxBQUNOLFNBQVMsQ0FBRSxNQUFNLEFBQ25CLENBQUMifQ== */";
     	append_dev(document.head, style);
     }
 
     function get_each_context_1(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[8] = list[i];
+    	child_ctx[11] = list[i];
     	return child_ctx;
     }
 
     function get_each_context(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[5] = list[i];
+    	child_ctx[8] = list[i];
     	return child_ctx;
     }
 
-    // (70:6) {#each week as d}
+    // (89:6) {#each week as d}
     function create_each_block_1(ctx) {
     	let div;
     	let div_title_value;
@@ -4651,26 +4729,31 @@ var app = (function () {
     	const block = {
     		c: function create() {
     			div = element("div");
-    			attr_dev(div, "class", "day svelte-36q35w");
-    			attr_dev(div, "title", div_title_value = /*d*/ ctx[8].iso);
-    			toggle_class(div, "weekend", /*d*/ ctx[8].weekend);
-    			toggle_class(div, "noday", /*d*/ ctx[8].noday);
-    			add_location(div, file, 70, 8, 1427);
+    			attr_dev(div, "class", "day svelte-ppyhl7");
+    			set_style(div, "background-color", /*d*/ ctx[11].color);
+    			attr_dev(div, "title", div_title_value = /*d*/ ctx[11].iso);
+    			toggle_class(div, "weekend", /*d*/ ctx[11].weekend);
+    			toggle_class(div, "noday", /*d*/ ctx[11].noday);
+    			add_location(div, file, 89, 8, 1914);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
     		},
     		p: function update(ctx, dirty) {
-    			if (dirty & /*weeks*/ 1 && div_title_value !== (div_title_value = /*d*/ ctx[8].iso)) {
+    			if (dirty & /*weeks*/ 1) {
+    				set_style(div, "background-color", /*d*/ ctx[11].color);
+    			}
+
+    			if (dirty & /*weeks*/ 1 && div_title_value !== (div_title_value = /*d*/ ctx[11].iso)) {
     				attr_dev(div, "title", div_title_value);
     			}
 
     			if (dirty & /*weeks*/ 1) {
-    				toggle_class(div, "weekend", /*d*/ ctx[8].weekend);
+    				toggle_class(div, "weekend", /*d*/ ctx[11].weekend);
     			}
 
     			if (dirty & /*weeks*/ 1) {
-    				toggle_class(div, "noday", /*d*/ ctx[8].noday);
+    				toggle_class(div, "noday", /*d*/ ctx[11].noday);
     			}
     		},
     		d: function destroy(detaching) {
@@ -4682,18 +4765,18 @@ var app = (function () {
     		block,
     		id: create_each_block_1.name,
     		type: "each",
-    		source: "(70:6) {#each week as d}",
+    		source: "(89:6) {#each week as d}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (68:2) {#each weeks as week}
+    // (87:2) {#each weeks as week}
     function create_each_block(ctx) {
     	let div;
     	let t;
-    	let each_value_1 = /*week*/ ctx[5];
+    	let each_value_1 = /*week*/ ctx[8];
     	validate_each_argument(each_value_1);
     	let each_blocks = [];
 
@@ -4710,8 +4793,8 @@ var app = (function () {
     			}
 
     			t = space();
-    			attr_dev(div, "class", "week svelte-36q35w");
-    			add_location(div, file, 68, 4, 1376);
+    			attr_dev(div, "class", "week svelte-ppyhl7");
+    			add_location(div, file, 87, 4, 1863);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -4724,7 +4807,7 @@ var app = (function () {
     		},
     		p: function update(ctx, dirty) {
     			if (dirty & /*weeks*/ 1) {
-    				each_value_1 = /*week*/ ctx[5];
+    				each_value_1 = /*week*/ ctx[8];
     				validate_each_argument(each_value_1);
     				let i;
 
@@ -4757,7 +4840,7 @@ var app = (function () {
     		block,
     		id: create_each_block.name,
     		type: "each",
-    		source: "(68:2) {#each weeks as week}",
+    		source: "(87:2) {#each weeks as week}",
     		ctx
     	});
 
@@ -4768,6 +4851,8 @@ var app = (function () {
     	let div0;
     	let t1;
     	let div1;
+    	let t2;
+    	let current;
     	let each_value = /*weeks*/ ctx[0];
     	validate_each_argument(each_value);
     	let each_blocks = [];
@@ -4775,6 +4860,9 @@ var app = (function () {
     	for (let i = 0; i < each_value.length; i += 1) {
     		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
     	}
+
+    	const default_slot_template = /*#slots*/ ctx[4].default;
+    	const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[3], null);
 
     	const block = {
     		c: function create() {
@@ -4787,10 +4875,12 @@ var app = (function () {
     				each_blocks[i].c();
     			}
 
-    			attr_dev(div0, "class", "label svelte-36q35w");
-    			add_location(div0, file, 65, 0, 1297);
-    			attr_dev(div1, "class", "year svelte-36q35w");
-    			add_location(div1, file, 66, 0, 1329);
+    			t2 = space();
+    			if (default_slot) default_slot.c();
+    			attr_dev(div0, "class", "label svelte-ppyhl7");
+    			add_location(div0, file, 84, 0, 1784);
+    			attr_dev(div1, "class", "year svelte-ppyhl7");
+    			add_location(div1, file, 85, 0, 1816);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -4803,6 +4893,14 @@ var app = (function () {
     			for (let i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].m(div1, null);
     			}
+
+    			insert_dev(target, t2, anchor);
+
+    			if (default_slot) {
+    				default_slot.m(target, anchor);
+    			}
+
+    			current = true;
     		},
     		p: function update(ctx, [dirty]) {
     			if (dirty & /*weeks*/ 1) {
@@ -4828,14 +4926,29 @@ var app = (function () {
 
     				each_blocks.length = each_value.length;
     			}
+
+    			if (default_slot) {
+    				if (default_slot.p && dirty & /*$$scope*/ 8) {
+    					update_slot(default_slot, default_slot_template, ctx, /*$$scope*/ ctx[3], dirty, null, null);
+    				}
+    			}
     		},
-    		i: noop,
-    		o: noop,
+    		i: function intro(local) {
+    			if (current) return;
+    			transition_in(default_slot, local);
+    			current = true;
+    		},
+    		o: function outro(local) {
+    			transition_out(default_slot, local);
+    			current = false;
+    		},
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(div0);
     			if (detaching) detach_dev(t1);
     			if (detaching) detach_dev(div1);
     			destroy_each(each_blocks, detaching);
+    			if (detaching) detach_dev(t2);
+    			if (default_slot) default_slot.d(detaching);
     		}
     	};
 
@@ -4851,33 +4964,55 @@ var app = (function () {
     }
 
     function instance$1($$self, $$props, $$invalidate) {
+    	let $days;
+    	validate_store(days, "days");
+    	component_subscribe($$self, days, $$value => $$invalidate(5, $days = $$value));
     	let { $$slots: slots = {}, $$scope } = $$props;
-    	validate_slots("Year", slots, []);
+    	validate_slots("Year", slots, ['default']);
     	let { date = "" } = $$props;
-    	date = src(date);
-    	let year = date.year();
-    	let start = date.startOf("year").startOf("week").minus(1, "second");
-    	let weeks = start.every("week", date.endOf("year"));
 
-    	weeks = weeks.map(mon => {
-    		let sun = mon.endOf("week").add(1, "second");
-    		return mon.every("day", sun);
-    	});
-
+    	// pre-work
     	let today = src.now();
 
-    	weeks = weeks.map(week => {
-    		return week.map(d => {
-    			let noday = d.year() !== year;
-    			let day = d.day();
+    	date = src(date);
+    	let year = date.year();
+    	setContext("year", year);
 
-    			return {
-    				iso: d.format("iso-short"),
-    				noday,
-    				today: d.isSame(today, "day"),
-    				weekend: !noday && (day === 0 || day === 1)
-    			};
+    	// compute the year
+    	const calculate = function (date) {
+    		let start = date.startOf("year").startOf("week").minus(1, "second");
+
+    		// get each day in the year, by week #
+    		let weeks = start.every("week", date.endOf("year"));
+
+    		weeks = weeks.map(mon => {
+    			let sun = mon.endOf("week").add(1, "second");
+    			return mon.every("day", sun);
     		});
+
+    		// render data
+    		return weeks.map(week => {
+    			return week.map(d => {
+    				let noday = d.year() !== year;
+    				let day = d.day();
+    				let iso = d.format("iso-short");
+    				let meta = $days[iso] || {};
+
+    				return {
+    					iso,
+    					noday,
+    					today: d.isSame(today, "day"),
+    					color: meta.color || "none",
+    					weekend: !noday && (day === 0 || day === 1)
+    				};
+    			});
+    		});
+    	};
+
+    	let weeks = [];
+
+    	onMount(() => {
+    		$$invalidate(0, weeks = calculate(date));
     	});
 
     	const writable_props = ["date"];
@@ -4888,36 +5023,40 @@ var app = (function () {
 
     	$$self.$$set = $$props => {
     		if ("date" in $$props) $$invalidate(2, date = $$props.date);
+    		if ("$$scope" in $$props) $$invalidate(3, $$scope = $$props.$$scope);
     	};
 
     	$$self.$capture_state = () => ({
     		spacetime: src,
+    		days,
+    		setContext,
+    		onMount,
     		date,
+    		today,
     		year,
-    		start,
+    		calculate,
     		weeks,
-    		today
+    		$days
     	});
 
     	$$self.$inject_state = $$props => {
     		if ("date" in $$props) $$invalidate(2, date = $$props.date);
-    		if ("year" in $$props) $$invalidate(1, year = $$props.year);
-    		if ("start" in $$props) start = $$props.start;
-    		if ("weeks" in $$props) $$invalidate(0, weeks = $$props.weeks);
     		if ("today" in $$props) today = $$props.today;
+    		if ("year" in $$props) $$invalidate(1, year = $$props.year);
+    		if ("weeks" in $$props) $$invalidate(0, weeks = $$props.weeks);
     	};
 
     	if ($$props && "$$inject" in $$props) {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [weeks, year, date];
+    	return [weeks, year, date, $$scope, slots];
     }
 
     class Year extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		if (!document.getElementById("svelte-36q35w-style")) add_css();
+    		if (!document.getElementById("svelte-ppyhl7-style")) add_css();
     		init(this, options, instance$1, create_fragment$1, safe_not_equal, { date: 2 });
 
     		dispatch_dev("SvelteRegisterComponent", {
@@ -4943,11 +5082,55 @@ var app = (function () {
     function add_css$1() {
     	var style = element("style");
     	style.id = "svelte-1rcg7lw-style";
-    	style.textContent = ".container.svelte-1rcg7lw{margin:50px}.m3.svelte-1rcg7lw{margin:3rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRGVtby5zdmVsdGUiLCJzb3VyY2VzIjpbIkRlbW8uc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCB7IFllYXIsIERheSB9IGZyb20gJy4vc3JjJ1xuPC9zY3JpcHQ+XG5cbjxzdHlsZT5cbiAgLmNvbnRhaW5lciB7XG4gICAgbWFyZ2luOiA1MHB4O1xuICB9XG4gIC5tMyB7XG4gICAgbWFyZ2luOiAzcmVtO1xuICB9XG48L3N0eWxlPlxuXG48ZGl2PlxuICA8ZGl2IGNsYXNzPVwibTNcIj5cbiAgICA8YSBocmVmPVwiaHR0cHM6Ly9naXRodWIuY29tL3NwZW5jZXJtb3VudGFpbi9zb21laG93LXllYXJcIj5zb21laG93LXllYXI8L2E+XG4gICAgPHNwYW4gY2xhc3M9XCJmMDggZ3JleSBcIj5cbiAgICAgIC0gaXRzIGEgc3ZlbHRlIGh0bWwgeWVhci1pbmZvZ3JhcGhpYyBjb21wb25lbnQgdXNpbmcgc3BhY2V0aW1lLlxuICAgIDwvc3Bhbj5cbiAgPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJjb250YWluZXJcIj5cbiAgICA8WWVhciBkYXRlPVwibWFyY2ggMjAyMFwiPlxuICAgICAgPERheSBkYXRlPVwibWFyY2ggMjh0aFwiIC8+XG4gICAgPC9ZZWFyPlxuICA8L2Rpdj5cbjwvZGl2PlxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUtFLFVBQVUsZUFBQyxDQUFDLEFBQ1YsTUFBTSxDQUFFLElBQUksQUFDZCxDQUFDLEFBQ0QsR0FBRyxlQUFDLENBQUMsQUFDSCxNQUFNLENBQUUsSUFBSSxBQUNkLENBQUMifQ== */";
+    	style.textContent = ".container.svelte-1rcg7lw{margin:50px}.m3.svelte-1rcg7lw{margin:3rem}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRGVtby5zdmVsdGUiLCJzb3VyY2VzIjpbIkRlbW8uc3ZlbHRlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQ+XG4gIGltcG9ydCB7IFllYXIsIERheSB9IGZyb20gJy4vc3JjJ1xuPC9zY3JpcHQ+XG5cbjxzdHlsZT5cbiAgLmNvbnRhaW5lciB7XG4gICAgbWFyZ2luOiA1MHB4O1xuICB9XG4gIC5tMyB7XG4gICAgbWFyZ2luOiAzcmVtO1xuICB9XG48L3N0eWxlPlxuXG48ZGl2PlxuICA8ZGl2IGNsYXNzPVwibTNcIj5cbiAgICA8YSBocmVmPVwiaHR0cHM6Ly9naXRodWIuY29tL3NwZW5jZXJtb3VudGFpbi9zb21laG93LXllYXJcIj5zb21laG93LXllYXI8L2E+XG4gICAgPHNwYW4gY2xhc3M9XCJmMDggZ3JleSBcIj5cbiAgICAgIC0gaXRzIGEgc3ZlbHRlIGh0bWwgeWVhci1pbmZvZ3JhcGhpYyBjb21wb25lbnQgdXNpbmcgc3BhY2V0aW1lLlxuICAgIDwvc3Bhbj5cbiAgPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJjb250YWluZXJcIj5cbiAgICA8WWVhciBkYXRlPVwibWFyY2ggMjAyMFwiPlxuICAgICAgPERheSBkYXRlPVwibWFyY2ggMjh0aFwiIC8+XG4gICAgPC9ZZWFyPlxuICAgIDxkaXYgY2xhc3M9XCJtM1wiIC8+XG4gICAgPFllYXIgZGF0ZT1cIm1hcmNoIDIwMjFcIj5cbiAgICAgIDxEYXkgZGF0ZT1cIm1hcmNoIDI4dGhcIiAvPlxuICAgIDwvWWVhcj5cbiAgPC9kaXY+XG48L2Rpdj5cbiJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFLRSxVQUFVLGVBQUMsQ0FBQyxBQUNWLE1BQU0sQ0FBRSxJQUFJLEFBQ2QsQ0FBQyxBQUNELEdBQUcsZUFBQyxDQUFDLEFBQ0gsTUFBTSxDQUFFLElBQUksQUFDZCxDQUFDIn0= */";
     	append_dev(document.head, style);
     }
 
     // (22:4) <Year date="march 2020">
+    function create_default_slot_1(ctx) {
+    	let day;
+    	let current;
+
+    	day = new Day({
+    			props: { date: "march 28th" },
+    			$$inline: true
+    		});
+
+    	const block = {
+    		c: function create() {
+    			create_component(day.$$.fragment);
+    		},
+    		m: function mount(target, anchor) {
+    			mount_component(day, target, anchor);
+    			current = true;
+    		},
+    		p: noop,
+    		i: function intro(local) {
+    			if (current) return;
+    			transition_in(day.$$.fragment, local);
+    			current = true;
+    		},
+    		o: function outro(local) {
+    			transition_out(day.$$.fragment, local);
+    			current = false;
+    		},
+    		d: function destroy(detaching) {
+    			destroy_component(day, detaching);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_default_slot_1.name,
+    		type: "slot",
+    		source: "(22:4) <Year date=\\\"march 2020\\\">",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (26:4) <Year date="march 2021">
     function create_default_slot(ctx) {
     	let day;
     	let current;
@@ -4984,7 +5167,7 @@ var app = (function () {
     		block,
     		id: create_default_slot.name,
     		type: "slot",
-    		source: "(22:4) <Year date=\\\"march 2020\\\">",
+    		source: "(26:4) <Year date=\\\"march 2021\\\">",
     		ctx
     	});
 
@@ -4992,19 +5175,32 @@ var app = (function () {
     }
 
     function create_fragment$2(ctx) {
-    	let div2;
+    	let div3;
     	let div0;
     	let a;
     	let t1;
     	let span;
     	let t3;
+    	let div2;
+    	let year0;
+    	let t4;
     	let div1;
-    	let year;
+    	let t5;
+    	let year1;
     	let current;
 
-    	year = new Year({
+    	year0 = new Year({
     			props: {
     				date: "march 2020",
+    				$$slots: { default: [create_default_slot_1] },
+    				$$scope: { ctx }
+    			},
+    			$$inline: true
+    		});
+
+    	year1 = new Year({
+    			props: {
+    				date: "march 2021",
     				$$slots: { default: [create_default_slot] },
     				$$scope: { ctx }
     			},
@@ -5013,7 +5209,7 @@ var app = (function () {
 
     	const block = {
     		c: function create() {
-    			div2 = element("div");
+    			div3 = element("div");
     			div0 = element("div");
     			a = element("a");
     			a.textContent = "somehow-year";
@@ -5021,53 +5217,73 @@ var app = (function () {
     			span = element("span");
     			span.textContent = "- its a svelte html year-infographic component using spacetime.";
     			t3 = space();
+    			div2 = element("div");
+    			create_component(year0.$$.fragment);
+    			t4 = space();
     			div1 = element("div");
-    			create_component(year.$$.fragment);
+    			t5 = space();
+    			create_component(year1.$$.fragment);
     			attr_dev(a, "href", "https://github.com/spencermountain/somehow-year");
     			add_location(a, file$1, 15, 4, 170);
     			attr_dev(span, "class", "f08 grey ");
     			add_location(span, file$1, 16, 4, 249);
     			attr_dev(div0, "class", "m3 svelte-1rcg7lw");
     			add_location(div0, file$1, 14, 2, 149);
-    			attr_dev(div1, "class", "container svelte-1rcg7lw");
-    			add_location(div1, file$1, 20, 2, 367);
-    			add_location(div2, file$1, 13, 0, 141);
+    			attr_dev(div1, "class", "m3 svelte-1rcg7lw");
+    			add_location(div1, file$1, 24, 4, 468);
+    			attr_dev(div2, "class", "container svelte-1rcg7lw");
+    			add_location(div2, file$1, 20, 2, 367);
+    			add_location(div3, file$1, 13, 0, 141);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
-    			insert_dev(target, div2, anchor);
-    			append_dev(div2, div0);
+    			insert_dev(target, div3, anchor);
+    			append_dev(div3, div0);
     			append_dev(div0, a);
     			append_dev(div0, t1);
     			append_dev(div0, span);
-    			append_dev(div2, t3);
+    			append_dev(div3, t3);
+    			append_dev(div3, div2);
+    			mount_component(year0, div2, null);
+    			append_dev(div2, t4);
     			append_dev(div2, div1);
-    			mount_component(year, div1, null);
+    			append_dev(div2, t5);
+    			mount_component(year1, div2, null);
     			current = true;
     		},
     		p: function update(ctx, [dirty]) {
-    			const year_changes = {};
+    			const year0_changes = {};
 
     			if (dirty & /*$$scope*/ 1) {
-    				year_changes.$$scope = { dirty, ctx };
+    				year0_changes.$$scope = { dirty, ctx };
     			}
 
-    			year.$set(year_changes);
+    			year0.$set(year0_changes);
+    			const year1_changes = {};
+
+    			if (dirty & /*$$scope*/ 1) {
+    				year1_changes.$$scope = { dirty, ctx };
+    			}
+
+    			year1.$set(year1_changes);
     		},
     		i: function intro(local) {
     			if (current) return;
-    			transition_in(year.$$.fragment, local);
+    			transition_in(year0.$$.fragment, local);
+    			transition_in(year1.$$.fragment, local);
     			current = true;
     		},
     		o: function outro(local) {
-    			transition_out(year.$$.fragment, local);
+    			transition_out(year0.$$.fragment, local);
+    			transition_out(year1.$$.fragment, local);
     			current = false;
     		},
     		d: function destroy(detaching) {
-    			if (detaching) detach_dev(div2);
-    			destroy_component(year);
+    			if (detaching) detach_dev(div3);
+    			destroy_component(year0);
+    			destroy_component(year1);
     		}
     	};
 

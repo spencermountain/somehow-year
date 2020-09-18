@@ -1,30 +1,49 @@
 <script>
   import spacetime from 'spacetime'
+  import { days } from './stores'
+  import { setContext } from 'svelte'
+  import { onMount } from 'svelte'
   export let date = ''
+
+  // pre-work
+  let today = spacetime.now()
   date = spacetime(date)
   let year = date.year()
-  let start = date
-    .startOf('year')
-    .startOf('week')
-    .minus(1, 'second')
-  let weeks = start.every('week', date.endOf('year'))
-  weeks = weeks.map(mon => {
-    let sun = mon.endOf('week').add(1, 'second')
-    return mon.every('day', sun)
-  })
+  setContext('year', year)
 
-  let today = spacetime.now()
-  weeks = weeks.map(week => {
-    return week.map(d => {
-      let noday = d.year() !== year
-      let day = d.day()
-      return {
-        iso: d.format('iso-short'),
-        noday: noday,
-        today: d.isSame(today, 'day'),
-        weekend: !noday && (day === 0 || day === 1)
-      }
+  // compute the year
+  const calculate = function(date) {
+    let start = date
+      .startOf('year')
+      .startOf('week')
+      .minus(1, 'second')
+    // get each day in the year, by week #
+    let weeks = start.every('week', date.endOf('year'))
+    weeks = weeks.map(mon => {
+      let sun = mon.endOf('week').add(1, 'second')
+      return mon.every('day', sun)
     })
+    // render data
+    return weeks.map(week => {
+      return week.map(d => {
+        let noday = d.year() !== year
+        let day = d.day()
+        let iso = d.format('iso-short')
+        let meta = $days[iso] || {}
+        return {
+          iso: iso,
+          noday: noday,
+          today: d.isSame(today, 'day'),
+          color: meta.color || 'none',
+          weekend: !noday && (day === 0 || day === 1)
+        }
+      })
+    })
+  }
+
+  let weeks = []
+  onMount(() => {
+    weeks = calculate(date)
   })
 </script>
 
@@ -41,6 +60,7 @@
     min-height: 100px;
   }
   .day {
+    border-radius: 2px;
     flex: 1;
     box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.2);
     margin: 1px;
@@ -50,8 +70,7 @@
     box-shadow: none;
   }
   .weekend {
-    background-color: #f7f7f7;
-    opacity: 0.5;
+    background-color: #f5f5f5;
   }
   .week {
     flex: 1;
@@ -72,8 +91,10 @@
           class="day"
           class:weekend={d.weekend}
           class:noday={d.noday}
+          style="background-color:{d.color};"
           title={d.iso} />
       {/each}
     </div>
   {/each}
 </div>
+<slot />
